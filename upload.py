@@ -59,7 +59,7 @@ for ftpDirName in ftpRemotePath:
         ftp.cwd(dirname=ftpDirName)
     except Exception as e:
         print(e)
-        #print('Создаем директории...')
+        print('Создаем директории...')
         ftp.mkd(dirname=ftpDirName)
         ftp.cwd(dirname=ftpDirName)
 print(ftp.sendcmd('PWD'))
