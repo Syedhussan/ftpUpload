@@ -53,16 +53,16 @@ ftp.login(user=ftpUsername, passwd=ftpPassword)
 ftp.encoding = 'cp1251'
 # print(ftpRemotePath)
 for ftpDirName in ftpRemotePath:
-    print(ftp.nlst())    
     ftpDirNameInBytes=bytes(ftpDirName,'utf8')
+    print(ftpDirName.encode())
     try:
         ftp.cwd(dirname=ftpDirName)
     except Exception as e:
         print(e)
-        print('Создаем директории...')
+        print('Создаем директорию -> ' + ftpDirName)
         ftp.mkd(dirname=ftpDirName)
         ftp.cwd(dirname=ftpDirName)
-print(ftp.sendcmd('PWD'))
+print(ftp.pwd())
 
 forSend = open(ftpFilename, 'rb')
 ftp.storbinary("STOR " + ftpFilename, forSend)
