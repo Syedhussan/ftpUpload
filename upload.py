@@ -18,20 +18,21 @@ from datetime import datetime, timedelta
 import sys
 
 
-if len(sys.argv) != 7:  # 0 - имя испольняемого файла как аргумент
+if len(sys.argv) != 8:  # 0 - имя испольняемого файла как аргумент
     print("""
     Неверное использование.
     Пример:
-        upload.py host port username password remotePATH filename
+        upload.py host port encoding username password remotePATH filename
         """)
     sys.exit()
 
 ftpHost = sys.argv[1]
 ftpPort = sys.argv[2]
-ftpUsername = sys.argv[3]
-ftpPassword = sys.argv[4]
-ftpRemotePath = sys.argv[5].replace('я',"Я")
-ftpFilename = sys.argv[6].replace('я',"Я")
+ftpEncoding = sys.argv[3]
+ftpUsername = sys.argv[4]
+ftpPassword = sys.argv[5]
+ftpRemotePath = sys.argv[6].replace('я',u'яя')
+ftpFilename = sys.argv[7]
 
 monthNames = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ',
               'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
@@ -45,16 +46,19 @@ if dateInMSK.hour > 13:
 ftpRemotePath = ftpRemotePath.replace('YYYY', '%d' % dateInMSK.year)
 ftpRemotePath = ftpRemotePath.replace('MM', '%02d' % dateInMSK.month)
 ftpRemotePath = ftpRemotePath.replace('MONTH', '%s' % monthNames[int(dateInMSK.month - 1)])
-ftpRemotePath = ftpRemotePath.replace('DD+1', '%d' % int(dateInMSK.day + 1 + dayOffset))
-ftpRemotePath = ftpRemotePath.replace('DD', '%d' % int(dateInMSK.day + dayOffset))
+ftpRemotePath = ftpRemotePath.replace('DD+1', '%02d' % int(dateInMSK.day + 1 + dayOffset))
+ftpRemotePath = ftpRemotePath.replace('DD', '%02d' % int(dateInMSK.day + dayOffset))
 ftpRemotePath = ftpRemotePath.split('/')
 ftp = FTP()
 ftp.connect(host=ftpHost, port=int(ftpPort), timeout=5)
 ftp.login(user=ftpUsername, passwd=ftpPassword)
-ftp.encoding = 'cp1251'
+ftp.encoding = ftpEncoding
+
+
+print(ftp.pwd())
 
 for ftpRemotePathItem in ftpRemotePath:
-    # print(ftpDirName.encode())
+    changeDir = False
     try:
         ftpdirlist = ftp.nlst()
         countitems = 1
@@ -70,6 +74,7 @@ for ftpRemotePathItem in ftpRemotePath:
             if ftpRemotePathItem == dirlistItem:
                 ftp.cwd(dirlistItem)
                 print(ftp.pwd())
+                changeDir = True
                 break
             elif countitems == len(ftpdirlist):
                 print('Создаем директорию -> ' + ftpRemotePathItem)
@@ -85,11 +90,17 @@ for ftpRemotePathItem in ftpRemotePath:
       
     except Exception as ex:
         print(ex)
+        if not changeDir:
+            if str(ex).find('exists') > 0:
+                ftp.cwd(ftpRemotePathItem)
+                print(ftp.pwd())
 
 try:
-    print(ftp.pwd())
+    print(ftpRemotePathItem)
+    if not changeDir:
+        ftp.cwd(ftpRemotePathItem)
     forSend = open(ftpFilename, 'rb')
-    ftp.storbinary("STOR " + ftpFilename, forSend)
+    ftp.storbinary("STOR " + ftpFilename.replace('я','яя'), forSend)
     forSend.close()
     ftp.quit()
 except Exception as e:
