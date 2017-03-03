@@ -17,6 +17,7 @@ from ftplib import FTP
 from datetime import datetime, timedelta
 import sys
 
+
 if len(sys.argv) != 7:  # 0 - имя испольняемого файла как аргумент
     print("""
     Неверное использование.
@@ -29,8 +30,8 @@ ftpHost = sys.argv[1]
 ftpPort = sys.argv[2]
 ftpUsername = sys.argv[3]
 ftpPassword = sys.argv[4]
-ftpRemotePath = sys.argv[5]
-ftpFilename = sys.argv[6]
+ftpRemotePath = sys.argv[5].replace('я',"Я")
+ftpFilename = sys.argv[6].replace('я',"Я")
 
 monthNames = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ',
               'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
@@ -51,20 +52,46 @@ ftp = FTP()
 ftp.connect(host=ftpHost, port=int(ftpPort), timeout=5)
 ftp.login(user=ftpUsername, passwd=ftpPassword)
 ftp.encoding = 'cp1251'
-# print(ftpRemotePath)
-for ftpDirName in ftpRemotePath:
-    ftpDirNameInBytes=bytes(ftpDirName,'utf8')
-    print(ftpDirName.encode())
-    try:
-        ftp.cwd(dirname=ftpDirName)
-    except Exception as e:
-        print(e)
-        print('Создаем директорию -> ' + ftpDirName)
-        ftp.mkd(dirname=ftpDirName)
-        ftp.cwd(dirname=ftpDirName)
-print(ftp.pwd())
 
-forSend = open(ftpFilename, 'rb')
-ftp.storbinary("STOR " + ftpFilename, forSend)
-forSend.close()
-ftp.quit()
+for ftpRemotePathItem in ftpRemotePath:
+    # print(ftpDirName.encode())
+    try:
+        ftpdirlist = ftp.nlst()
+        countitems = 1
+        if len(ftpdirlist) == 0:
+            print('Создаем директорию -> ' + ftpRemotePathItem)
+            ftp.mkd(ftpRemotePathItem)         
+            ftp.cwd(ftp.nlst()[0])
+            print(ftp.pwd())
+            continue
+            
+            
+        for dirlistItem in ftpdirlist:
+            if ftpRemotePathItem == dirlistItem:
+                ftp.cwd(dirlistItem)
+                print(ftp.pwd())
+                break
+            elif countitems == len(ftpdirlist):
+                print('Создаем директорию -> ' + ftpRemotePathItem)
+                ftp.mkd(ftpRemotePathItem)                
+                ftp.cwd(ftpRemotePathItem)
+                print(ftp.pwd())                
+                break
+            else:                           
+                countitems = countitems + 1
+                continue
+            
+    
+      
+    except Exception as ex:
+        print(ex)
+
+try:
+    print(ftp.pwd())
+    forSend = open(ftpFilename, 'rb')
+    ftp.storbinary("STOR " + ftpFilename, forSend)
+    forSend.close()
+    ftp.quit()
+except Exception as e:
+    print(e)
+    
