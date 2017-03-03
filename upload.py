@@ -94,4 +94,3 @@ try:
     ftp.quit()
 except Exception as e:
     print(e)
-    
