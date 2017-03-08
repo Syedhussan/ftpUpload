@@ -16,6 +16,7 @@ Created on 25 февр. 2017 г.
 from ftplib import FTP
 from datetime import datetime, timedelta
 import sys
+import re
 
 
 if len(sys.argv) != 8:  # 0 - имя испольняемого файла как аргумент
@@ -49,58 +50,61 @@ ftpRemotePath = ftpRemotePath.replace('MONTH', '%s' % monthNames[int(dateInMSK.m
 ftpRemotePath = ftpRemotePath.replace('DD+1', '%02d' % int(dateInMSK.day + 1 + dayOffset))
 ftpRemotePath = ftpRemotePath.replace('DD', '%02d' % int(dateInMSK.day + dayOffset))
 ftpRemotePath = ftpRemotePath.split('/')
-ftp = FTP()
-ftp.connect(host=ftpHost, port=int(ftpPort), timeout=5)
-ftp.login(user=ftpUsername, passwd=ftpPassword)
-ftp.encoding = ftpEncoding
+try:
+    ftp = FTP()
+    ftp.connect(host=ftpHost, port=int(ftpPort), timeout=5)
+    ftp.login(user=ftpUsername, passwd=ftpPassword)
+    ftp.encoding = ftpEncoding
+except Exception as ex:
+    print(ex)
 
-
-print(ftp.pwd())
 
 for ftpRemotePathItem in ftpRemotePath:
+    print('Текущий каталог: ' + ftp.pwd())
     changeDir = False
     try:
-        ftpdirlist = ftp.nlst()
+        lst=[]
+        ftpdirlist=[]
+        ftp.retrlines('LIST', lst.append)
+        print(lst)
+        for lstItem in lst:
+            if re.match(r'^d.*', lstItem):
+            #if lstItem.find('rwx') > 0:
+                #ftpdirlist.append(re.sub(r'^.......................................................','', lstItem))
+                ftpdirlist.append(lstItem)
+                doublechar='я'
+            else:
+                #ftpdirlist.append(re.sub(r'^.........................................','', lstItem))
+                ftpdirlist.append(lstItem)
+                doublechar='яя'
         countitems = 1
         if len(ftpdirlist) == 0:
             print('Создаем директорию -> ' + ftpRemotePathItem)
             ftp.mkd(ftpRemotePathItem)         
-            ftp.cwd(ftp.nlst()[0])
-            print(ftp.pwd())
+            #ftp.cwd(ftp.nlst()[0])
+            ftp.cwd(ftpRemotePathItem)
             continue
             
             
         for dirlistItem in ftpdirlist:
-            if ftpRemotePathItem == dirlistItem:
-                ftp.cwd(dirlistItem)
-                print(ftp.pwd())
+            #if ftpRemotePathItem == dirlistItem:
+            if re.match(r'^.*' + ftpRemotePathItem + '$', dirlistItem):
+                ftp.cwd(ftpRemotePathItem)
                 changeDir = True
                 break
             elif countitems == len(ftpdirlist):
                 print('Создаем директорию -> ' + ftpRemotePathItem)
                 ftp.mkd(ftpRemotePathItem)                
                 ftp.cwd(ftpRemotePathItem)
-                print(ftp.pwd())                
                 break
             else:                           
                 countitems = countitems + 1
-                continue
-            
-    
-      
+                continue  
     except Exception as ex:
         print(ex)
-        if not changeDir:
-            if str(ex).find('exists') > 0:
-                ftp.cwd(ftpRemotePathItem)
-                print(ftp.pwd())
-
 try:
-    print(ftpRemotePathItem)
-    if not changeDir:
-        ftp.cwd(ftpRemotePathItem)
     forSend = open(ftpFilename, 'rb')
-    ftp.storbinary("STOR " + ftpFilename.replace('я','яя'), forSend)
+    ftp.storbinary("STOR " + ftpFilename.replace('я',doublechar), forSend)
     forSend.close()
     ftp.quit()
 except Exception as e:
