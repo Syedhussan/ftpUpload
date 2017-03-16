@@ -8,7 +8,15 @@ Created on 25 февр. 2017 г.
     Важно - при отправке файла необходимо находиться в текущем каталоге.
 
     пример:
-    python35 upload.py host port username password remotePATH filename
+    python35 upload.py host port encoding username password remotePATH split_day_and_nigth filename
+            host - "1.2.3.4" - адрес FTP сервера
+            port - 21 - порт подключения
+            encoding - "cp1251" - используемая на сервере кодировка
+            username - "user" - имя пользователя
+            password - "PasswdForUser" - пароль
+            remotePATH - "destination/folder/YYYY/MM/DD/end/folder" - путь от корня (первый и последний сеши не пишем)
+            split_day_and_nigth - "1" - разделять день и ночь (добавлять в конечный каталог папку с именем предыдущего дня)
+            filename - "test.file" - файл с полным путем
 
 @author: lakoriss
 """
@@ -19,7 +27,7 @@ import sys
 import re
 
 
-if len(sys.argv) != 8:  # 0 - имя испольняемого файла как аргумент
+if len(sys.argv) != 9:  # 0 - имя испольняемого файла как аргумент
     print("""
     Неверное использование.
     Пример:
@@ -27,18 +35,19 @@ if len(sys.argv) != 8:  # 0 - имя испольняемого файла ка�
         """)
     sys.exit()
 
+
 ftpHost = sys.argv[1]
 ftpPort = sys.argv[2]
 ftpEncoding = sys.argv[3]
 ftpUsername = sys.argv[4]
 ftpPassword = sys.argv[5]
 ftpRemotePath = sys.argv[6].replace('я',u'яя')
-ftpFilename = sys.argv[7]
+ftpSplitDayAndNight = int(sys.argv[7])
+ftpFilename = sys.argv[8]
 
 monthNames = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ',
               'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
 
-# /YYYY/MM MONTH/DAY/
 
 dateInMSK = datetime.utcnow() + timedelta(hours=3)
 dayOffset=0
@@ -50,6 +59,9 @@ ftpRemotePath = ftpRemotePath.replace('MONTH', '%s' % monthNames[int(dateInMSK.m
 ftpRemotePath = ftpRemotePath.replace('DD+1', '%02d' % int(dateInMSK.day + 1 + dayOffset))
 ftpRemotePath = ftpRemotePath.replace('DD', '%02d' % int(dateInMSK.day + dayOffset))
 ftpRemotePath = ftpRemotePath.split('/')
+if dayOffset == 1 and ftpSplitDayAndNight == 1:
+    ftpRemotePath.append(str(dateInMSK.day - dayOffset))
+    
 try:
     ftp = FTP()
     ftp.connect(host=ftpHost, port=int(ftpPort), timeout=5)
@@ -65,30 +77,38 @@ for ftpRemotePathItem in ftpRemotePath:
     try:
         lst=[]
         ftpdirlist=[]
-        ftp.retrlines('LIST', lst.append)
-        print(lst)
+        # >>> bytes('ыыы', 'utf-8')
+        # b'\xd1\x8b\xd1\x8b\xd1\x8b'
+        # >>> b=bytes('ыыы', 'utf-8')
+        # >>> b.decode()
+        # 'ыыы'
+        
+        lst=ftp.mlsd('/')
+        print(lst[0].decode())
+        #ftp.retrlines('LIST', lst.append)
+        ftp.retrbinary('LIST', lst.append) # возможно решение в бинарной структуре данных
+        lst = bytes(lst[0], encoding='UTF-8').split("\r\n")
+        # надо распарсить строку
         for lstItem in lst:
+            print (lstItem.encode('utf-8'))
             if re.match(r'^d.*', lstItem):
-            #if lstItem.find('rwx') > 0:
-                #ftpdirlist.append(re.sub(r'^.......................................................','', lstItem))
-                ftpdirlist.append(lstItem)
+                ftpdirlist.append(re.sub(r'^d.*[0-9]\ ','', lstItem))
                 doublechar='я'
-            else:
-                #ftpdirlist.append(re.sub(r'^.........................................','', lstItem))
-                ftpdirlist.append(lstItem)
+            elif re.match(r'.*\<DIR\>.*', lstItem):            
+                ftpdirlist.append(re.sub(r'^.*<DIR>..........','', lstItem))
                 doublechar='яя'
+            else:
+                continue
         countitems = 1
         if len(ftpdirlist) == 0:
             print('Создаем директорию -> ' + ftpRemotePathItem)
-            ftp.mkd(ftpRemotePathItem)         
-            #ftp.cwd(ftp.nlst()[0])
+            ftp.mkd(ftpRemotePathItem)
             ftp.cwd(ftpRemotePathItem)
             continue
             
             
         for dirlistItem in ftpdirlist:
-            #if ftpRemotePathItem == dirlistItem:
-            if re.match(r'^.*' + ftpRemotePathItem + '$', dirlistItem):
+            if ftpRemotePathItem == dirlistItem:
                 ftp.cwd(ftpRemotePathItem)
                 changeDir = True
                 break
@@ -104,7 +124,8 @@ for ftpRemotePathItem in ftpRemotePath:
         print(ex)
 try:
     forSend = open(ftpFilename, 'rb')
-    ftp.storbinary("STOR " + ftpFilename.replace('я',doublechar), forSend)
+    print("STORE...")
+    # ftp.storbinary("STOR " + ftpFilename.replace('я',doublechar), forSend)
     forSend.close()
     ftp.quit()
 except Exception as e:
