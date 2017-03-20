@@ -50,9 +50,9 @@ monthNames = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'М�
 
 
 dateInMSK = datetime.utcnow() + timedelta(hours=3)
-dayOffset=0
+dayOffset = 0
 if dateInMSK.hour > 13:
-    dayOffset=1
+    dayOffset = 1
 ftpRemotePath = ftpRemotePath.replace('YYYY', '%d' % dateInMSK.year)
 ftpRemotePath = ftpRemotePath.replace('MM', '%02d' % dateInMSK.month)
 ftpRemotePath = ftpRemotePath.replace('MONTH', '%s' % monthNames[int(dateInMSK.month - 1)])
@@ -75,28 +75,28 @@ for ftpRemotePathItem in ftpRemotePath:
     print('Текущий каталог: ' + ftp.pwd())
     changeDir = False
     try:
-        lst=[]
-        ftpdirlist=[]
+        lst = []
+        ftpdirlist = []
         # >>> bytes('ыыы', 'utf-8')
         # b'\xd1\x8b\xd1\x8b\xd1\x8b'
         # >>> b=bytes('ыыы', 'utf-8')
         # >>> b.decode()
         # 'ыыы'
         
-        lst=ftp.mlsd('/')
-        print(lst[0].decode())
-        #ftp.retrlines('LIST', lst.append)
+        lst = ftp.mlsd('/')
+        print(lst)
+        # ftp.retrlines('LIST', lst.append)
         ftp.retrbinary('LIST', lst.append) # возможно решение в бинарной структуре данных
         lst = bytes(lst[0], encoding='UTF-8').split("\r\n")
         # надо распарсить строку
         for lstItem in lst:
-            print (lstItem.encode('utf-8'))
+            print(lstItem.encode('utf-8'))
             if re.match(r'^d.*', lstItem):
-                ftpdirlist.append(re.sub(r'^d.*[0-9]\ ','', lstItem))
-                doublechar='я'
-            elif re.match(r'.*\<DIR\>.*', lstItem):            
+                ftpdirlist.append(re.sub(r'^d.*[0-9] ', '', lstItem))
+                doublechar = 'я'
+            elif re.match(r'.*<DIR>.*', lstItem):
                 ftpdirlist.append(re.sub(r'^.*<DIR>..........','', lstItem))
-                doublechar='яя'
+                doublechar = 'яя'
             else:
                 continue
         countitems = 1
@@ -105,8 +105,6 @@ for ftpRemotePathItem in ftpRemotePath:
             ftp.mkd(ftpRemotePathItem)
             ftp.cwd(ftpRemotePathItem)
             continue
-            
-            
         for dirlistItem in ftpdirlist:
             if ftpRemotePathItem == dirlistItem:
                 ftp.cwd(ftpRemotePathItem)
@@ -118,7 +116,7 @@ for ftpRemotePathItem in ftpRemotePath:
                 ftp.cwd(ftpRemotePathItem)
                 break
             else:                           
-                countitems = countitems + 1
+                countitems += 1
                 continue  
     except Exception as ex:
         print(ex)
